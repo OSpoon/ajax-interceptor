@@ -107,6 +107,14 @@ export default class Main extends Component {
     this.forceUpdate();
   }
 
+  // 增加请求方式切换事件
+  handleRequestTypeChange = (val, i) => {
+    window.setting.ajaxInterceptor_rules[i].requestType = val;
+    this.set('ajaxInterceptor_rules', window.setting.ajaxInterceptor_rules);
+
+    this.forceUpdate();
+  }
+
   handleMatchChange = (e, i) => {
     window.setting.ajaxInterceptor_rules[i].match = e.target.value;
     this.set('ajaxInterceptor_rules', window.setting.ajaxInterceptor_rules);
@@ -170,7 +178,7 @@ export default class Main extends Component {
                 onChange={this.handleCollaseChange}
                 // onChangeDone={this.handleCollaseChange}
               >
-                {window.setting.ajaxInterceptor_rules.map(({filterType = 'normal', match, label, overrideTxt, switchOn = true, key}, i) => (
+                {window.setting.ajaxInterceptor_rules.map(({filterType = 'normal', requestType = 'GET', match, label, overrideTxt, switchOn = true, key}, i) => (
                   <Panel
                     key={key}
                     header={
@@ -178,16 +186,22 @@ export default class Main extends Component {
                         <Input.Group compact style={{width: '78%'}}>
                           <Input 
                             placeholder="name"
-                            style={{width: '21%'}}
+                            style={{width: '20%'}}
                             defaultValue={label}
                             onChange={e => this.handleLabelChange(e, i)}/>
+                          <Select defaultValue={requestType} style={{width: '30%'}} onChange={e => this.handleRequestTypeChange(e, i)}>
+                            <Option value="GET">GET</Option>
+                            <Option value="POST">POST</Option>
+                            <Option value="PUT">PUT</Option>
+                            <Option value="DELETE">DELETE</Option>
+                          </Select>
                           <Select defaultValue={filterType} style={{width: '30%'}} onChange={e => this.handleFilterTypeChange(e, i)}>
                             <Option value="normal">normal</Option>
                             <Option value="regex">regex</Option>
                           </Select>
                           <Input
                             placeholder={filterType === 'normal' ? 'eg: abc/get' : 'eg: abc.*'}
-                            style={{width: '49%'}}
+                            style={{width: '80%'}}
                             defaultValue={match}
                             // onClick={e => e.stopPropagation()}
                             onChange={e => this.handleMatchChange(e, i)}

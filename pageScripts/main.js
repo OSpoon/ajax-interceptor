@@ -1,3 +1,9 @@
+// 重写XMLHttpRequest的open函数对请求参数绑定到this对象，方便后续读取
+let open = XMLHttpRequest.prototype.open;
+window.XMLHttpRequest.prototype.open = function(...args){
+  this['requestParams'] = args;
+  open.apply(this, args);
+}
 
 // 命名空间
 let ajax_interceptor_qoweifjqon = {
@@ -8,8 +14,10 @@ let ajax_interceptor_qoweifjqon = {
   originalXHR: window.XMLHttpRequest,
   myXHR: function() {
     let pageScriptEventDispatched = false;
-    const modifyResponse = () => {
-      ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_rules.forEach(({filterType = 'normal', switchOn = true, match, overrideTxt = ''}) => {
+    const modifyResponse = (xhr) => {
+      // 通过读取xhr对象上绑定的请求参数对象来决定是否进行拦截
+      ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_rules.forEach(({filterType = 'normal', requestType = 'GET', switchOn = true, match, overrideTxt = ''}) => {
+        let openInterception = xhr.requestParams.find(v => v === requestType) ? true : false;
         let matched = false;
         if (switchOn && match) {
           if (filterType === 'normal' && this.responseURL.indexOf(match) > -1) {
@@ -18,7 +26,7 @@ let ajax_interceptor_qoweifjqon = {
             matched = true;
           }
         }
-        if (matched) {
+        if (matched && openInterception) {
           this.responseText = overrideTxt;
           this.response = overrideTxt;
           
@@ -40,7 +48,7 @@ let ajax_interceptor_qoweifjqon = {
             // 请求成功
             if (ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_switchOn) {
               // 开启拦截
-              modifyResponse();
+              modifyResponse(xhr);
             }
           }
           this.onreadystatechange && this.onreadystatechange.apply(this, args);
@@ -51,7 +59,7 @@ let ajax_interceptor_qoweifjqon = {
           // 请求成功
           if (ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_switchOn) {
             // 开启拦截
-            modifyResponse();
+            modifyResponse(xhr);
           }
           this.onload && this.onload.apply(this, args);
         }
@@ -83,7 +91,20 @@ let ajax_interceptor_qoweifjqon = {
   myFetch: function(...args) {
     return ajax_interceptor_qoweifjqon.originalFetch(...args).then((response) => {
       let txt = undefined;
-      ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_rules.forEach(({filterType = 'normal', switchOn = true, match, overrideTxt = ''}) => {
+      ajax_interceptor_qoweifjqon.settings.ajaxInterceptor_rules.forEach(({filterType = 'normal', requestType = 'GET', switchOn = true, match, overrideTxt = ''}) => {
+        let openInterception = false;
+        // 查找method并决定是否拦截
+        let haveMethod = false;
+        for (const arg of args) {
+          if(arg['method']){
+            haveMethod = true;
+            openInterception = arg['method'].toLocaleUpperCase() === requestType;
+          }
+        }
+        // 未设置method的按默认GET方式处理，需要对比requestType是否为默认的GET方式
+        if(!haveMethod) {
+          openInterception = requestType === "GET";
+        }
         let matched = false;
         if (switchOn && match) {
           if (filterType === 'normal' && response.url.indexOf(match) > -1) {
@@ -93,7 +114,7 @@ let ajax_interceptor_qoweifjqon = {
           }
         }
 
-        if (matched) {
+        if (matched && openInterception) {
           window.dispatchEvent(new CustomEvent("pageScript", {
             detail: {url: response.url, match}
           }));
